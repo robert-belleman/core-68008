@@ -1,0 +1,42 @@
+GAL22V10
+BUSDBG
+
+AS   DS   RW   FC0  FC1  FC2  A19  RESET PHI2G WBUF LE   GND
+BERR PHI1 BPHI2 BRW RAMRW TRIG BERRL DBG0 DBG1 DBG2 DBG3 VCC
+
+; ---------------------------------------------------------------------------
+; MC68008 core board, GAL3: Junior bus clocks and strobes, plus debug aids.
+; Replaces the 74HCT14 and 74LS01 of earlier drafts. All combinational.
+;
+; Bus side (fixed, do not change):
+;   PHI1, BPHI2  bus clocks made from GAL2's PHI2 (PHI2G); both come out of
+;                this one chip, so they are aligned to within a few ns.
+;   BRW          bus R/W: low only during a window write (WBUF low).
+;   RAMRW        Junior RAM.RW write strobe: low while LE (= PHI2 high in a
+;                window cycle) and writing. Driven push-pull.
+;
+; Debug side (edit freely, reprogram, no board change needed):
+;   TRIG   logic-analyser trigger, active low. Default: interrupt acknowledge.
+;   BERRL  sticky bus-error flag, active low, drives the red BERR LED.
+;          Set by any BERR, cleared by reset (RESET = ~PORST).
+;   DBG0-3 spare probes on the logic-analyser header / test point.
+; ---------------------------------------------------------------------------
+
+PHI1    = /PHI2G
+BPHI2   = PHI2G
+BRW     = WBUF
+/RAMRW  = LE * /WBUF
+
+/TRIG   = /AS * FC2 * FC1 * FC0
+
+/BERRL  = /BERR
+        + /BERRL * RESET
+
+/DBG0   = /AS * /RW                    ; any write cycle
+/DBG1   = /AS * FC2 * FC1 * /FC0       ; supervisor program fetch
+/DBG2   = /AS * A19                    ; access to the upper half (ROM, window, I/O)
+/DBG3   = /AS * /FC2                   ; user-mode cycle
+
+DESCRIPTION
+68008 core board GAL3: Junior bus PHI1/PHI2/R/W/RAM.RW, logic-analyser
+trigger, sticky BERR flag and spare debug outputs.

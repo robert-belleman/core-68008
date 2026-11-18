@@ -1,0 +1,11 @@
+LO 5000
+@file off.s
+@wait > 
+MD 5000 4
+MS 2000 2040 "R"
+MF.L 0 7 0
+MF.L 8 F 12345
+VE
+VE D
+VE
+VE X

@@ -1,0 +1,29 @@
+[LED OP6=0 OP7=1]
+
+
+MON68K 1.0 for core68008 (MC68008, 8 MHz). Type HE for help.
+RAM $00000-$7FFFF  ROM $80000-$BFFFF  Junior bus $C0000-$CFFFF  68681 $F0000
+> LO 5000
+Send the S-record file now (ESC or Ctrl-C cancels)
+
+[timeout after 'LO 5000']
+4 bytes in 1 data records, $05000-$05003
+PC set to $05000
+> MD 5000 4
+05000  AA BB CC DD                                       ....
+> MS 2000 2040 "R"
+0 match(es)
+> MF.L 0 7 0
+> MF.L 8 F 12345
+> VE
+2 (Bus error) -> $00012345
+3 (Address error) -> $00012345
+> VE D
+All vectors point to the monitor's handlers
+> VE
+All vectors point to the monitor's handlers
+> VE X
+
+Error: use VE (list) or VE D (restore the monitor's vectors)
+> 
+[end: 402700342 clocks (50.338 s at 8 MHz), 19294414 instructions, 0 overruns]

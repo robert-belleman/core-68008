@@ -1,0 +1,74 @@
+GAL22V10
+DECODE
+
+AS   DS   RW   A19  A18  A17  A16  FC0  FC1  FC2  RESET GND
+XDTACK OVL BERR DTACK DUART JSEL ROE RD   WR   ROMCE RAMCE VCC
+
+; ---------------------------------------------------------------------------
+; MC68008 core board, GAL1: address decoding and boot overlay.
+; galasm syntax: "/" = pin low, "*" = AND, "+" = OR.
+;
+;   $00000-$7FFFF  512K SRAM (AS6C4008)
+;   $80000-$BFFFF  256K flash (SST39SF020A)
+;   $C0000-$CFFFF  Junior bus window (bridge in GAL2), JSEL
+;   $D0000-$EFFFF  spare -> BERR
+;   $F0000-$FFFFF  68681 DUART (16 registers, mirrored), not during IACK
+;
+; Pin 1 is AS. It clocks the OVL register on its rising edge (end of each
+; bus cycle) and is also used as a normal input.
+;
+; Boot overlay: AR (RESET low) clears the register, and because OVL is an
+; active-low registered output its pin then reads HIGH = overlay on. While
+; OVL is high, reads from $00000-$7FFFF come from the flash, so the CPU
+; fetches SSP/PC from flash. The first bus cycle in $80000-$BFFFF drives
+; OVL low at the end of that cycle; from then on RAM is at $00000.
+; Writes always go to RAM. Verify on the bench: OVL must be high after
+; reset (scope pin 14 with RESET held low).
+; ---------------------------------------------------------------------------
+
+AR      = /RESET
+
+/OVL.R  = /OVL
+        + A19 * /A18
+
+; SRAM: whole lower half once the overlay is off; writes always.
+/RAMCE  = /AS * /A19 * /OVL
+        + /AS * /A19 * /RW
+
+; Flash: its own range, plus reads of the lower half during the overlay.
+/ROMCE  = /AS * A19 * /A18
+        + /AS * /A19 * OVL * RW
+
+; Shared strobes for SRAM and flash (/OE and /WE). Writes to the flash
+; range reach the flash's /WE, so it can be reprogrammed in circuit with
+; the SST unlock sequence.
+/RD     = /DS * RW
+/WR     = /DS * /RW
+
+; Junior bus window. GAL2 runs the PHI2-synchronous cycle and its DTACK.
+/JSEL   = /AS * A19 * A18 * /A17 * /A16
+
+; Output enable of the 74HCT573 read latch (bus data -> CPU).
+/ROE    = /AS * /DS * RW * A19 * A18 * /A17 * /A16
+
+; 68681 chip select, qualified with DS so write data is valid.
+; IACK cycles ($FFFFx with FC = 111) are excluded; GAL2 decodes those.
+/DUART  = /AS * /DS * A19 * A18 * A17 * A16 * /FC0
+        + /AS * /DS * A19 * A18 * A17 * A16 * /FC1
+        + /AS * /DS * A19 * A18 * A17 * A16 * /FC2
+
+; DTACK to the CPU. GAL1 always drives it: low with no wait states for
+; SRAM and flash, and low when the external DTACK (XDTACK, pin 13) is low.
+; XDTACK is a wired-OR line with a 4k7 pull-up, driven by GAL2's JDTACK
+; (Junior window) and the 68681 DTACKN (registers and IACK vector).
+/DTACK  = /AS * /A19
+        + /AS * A19 * /A18
+        + /AS * /XDTACK
+
+; Bus error for the spare ranges $D0000-$EFFFF.
+/BERR   = /AS * A19 * A18 * /A17 * A16
+        + /AS * A19 * A18 * A17 * /A16
+
+DESCRIPTION
+68008 core board GAL1: SRAM $00000, flash $80000 with boot overlay,
+Junior bus window $C0000 (JSEL), 68681 at $F0000, DTACK and BERR.

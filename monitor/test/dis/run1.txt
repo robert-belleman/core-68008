@@ -1,0 +1,5 @@
+@load dt.bin 1000
+@load slots1.bin 10000
+@limit 40000000000
+@send GO 1000
+@wait Program exit

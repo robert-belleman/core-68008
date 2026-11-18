@@ -1,0 +1,45 @@
+[LED OP6=0 OP7=1]
+
+
+MON68K 1.0 for core68008 (MC68008, 8 MHz). Type HE for help.
+RAM $00000-$7FFFF  ROM $80000-$BFFFF  Junior bus $C0000-$CFFFF  68681 $F0000
+> LO
+Send the S-record file now (ESC or Ctrl-C cancels)
+
+[timeout after 'LO']
+16384 bytes in 512 data records, $10000-$13FFF
+PC set to $10000
+> CM 10000 13FFF 20000
+0 difference(s)
+> IN
+MON68K 1.0  MC68008 at 8 MHz, 20-bit address bus
+  $00000-$003FF  vector table (RAM copy, user may change)
+  $00400-$00FFF  monitor workspace and stack (protected)
+  $01000-$7FFFF  user RAM
+  $80000-$BFFFF  flash ROM (monitor; read-only here)
+  $C0000-$CFFFF  Junior bus window (1 MHz bus cycles)
+  $D0000-$EFFFF  unmapped (bus error)
+  $F0000-$FFFFF  68681 DUART (16 registers, repeated)
+Console 38400 8N1 on channel A, RTS/CTS (RTS from the receiver)
+Receive errors since reset: none
+Ctrl-C break into the monitor: on
+> LO
+Send the S-record file now (ESC or Ctrl-C cancels)
+
+[timeout after 'LO']
+16384 bytes in 512 data records, $10000-$13FFF
+PC set to $10000
+> IN
+MON68K 1.0  MC68008 at 8 MHz, 20-bit address bus
+  $00000-$003FF  vector table (RAM copy, user may change)
+  $00400-$00FFF  monitor workspace and stack (protected)
+  $01000-$7FFFF  user RAM
+  $80000-$BFFFF  flash ROM (monitor; read-only here)
+  $C0000-$CFFFF  Junior bus window (1 MHz bus cycles)
+  $D0000-$EFFFF  unmapped (bus error)
+  $F0000-$FFFFF  68681 DUART (16 registers, repeated)
+Console 38400 8N1 on channel A, RTS/CTS (RTS from the receiver)
+Receive errors since reset: none
+Ctrl-C break into the monitor: on
+> 
+[end: 975812278 clocks (121.977 s at 8 MHz), 46399840 instructions, 0 overruns]

@@ -1,0 +1,118 @@
+[LED OP6=0 OP7=1]
+
+
+MON68K 1.0 for core68008 (MC68008, 8 MHz). Type HE for help.
+RAM $00000-$7FFFF  ROM $80000-$BFFFF  Junior bus $C0000-$CFFFF  68681 $F0000
+> LO
+Send the S-record file now (ESC or Ctrl-C cancels)
+
+[timeout after 'LO']
+32 bytes in 2 data records, $02000-$0201F
+PC set to $02000
+> MD 2000 20
+02000  70 00 7E 05 61 0A 52 80  51 CF FF FA 70 00 4E 4F  p.~.a.R.Q...p.NO
+02010  52 81 4E 75 00 00 00 00  00 00 00 00 00 00 00 00  R.Nu............
+> R PC
+$00002000
+> LO
+Send the S-record file now (ESC or Ctrl-C cancels)
+
+[timeout after 'LO']
+16 bytes in 1 data records, $02010-$0201F
+Warning: S5/S6 record says 2 data records
+1 bad record(s); first is record 2: checksum error
+LOAD FAILED: bad records were not written; PC unchanged
+> LO
+Send the S-record file now (ESC or Ctrl-C cancels)
+
+[timeout after 'LO']
+0 bytes in 4 data records
+4 bad record(s); first is record 1: address not writable (or beyond $FFFFF)
+LOAD FAILED: bad records were not written; PC unchanged
+> LO 5000
+Send the S-record file now (ESC or Ctrl-C cancels)
+
+[timeout after 'LO 5000']
+4 bytes in 1 data records, $05000-$05003
+PC set to $05000
+> MD 5000 4
+05000  AA BB CC DD                                       ....
+> LO
+Send the S-record file now (ESC or Ctrl-C cancels)
+
+[timeout after 'LO']
+2 bytes in 1 data records, $03001-$03002
+Entry address $00003001 not used (odd or not executable); PC unchanged
+> R PC
+$00005000
+> DU 2000 201F
+S00900004D4F4E36384B53
+S21400200070007E05610A528051CFFFFA70004E4F75
+S21400201052814E7500000000000000000000000025
+S5030002FA
+S804002000DB
+> DU 2000 2003 2000
+S00900004D4F4E36384B53
+S20800200070007E05E4
+S5030001FB
+S804002000DB
+> MF 3000 30FF 55
+> MF.W 3001 3010 1234
+
+Error: odd address: a word/long access here would cause an address error
+> MF.L 3000 300F 12345678
+> MD 3000 20
+03000  12 34 56 78 12 34 56 78  12 34 56 78 12 34 56 78  .4Vx.4Vx.4Vx.4Vx
+03010  55 55 55 55 55 55 55 55  55 55 55 55 55 55 55 55  UUUUUUUUUUUUUUUU
+> MC 3000 300F 3008
+> MD 3000 20
+03000  12 34 56 78 12 34 56 78  12 34 56 78 12 34 56 78  .4Vx.4Vx.4Vx.4Vx
+03010  12 34 56 78 12 34 56 78  55 55 55 55 55 55 55 55  .4Vx.4VxUUUUUUUU
+> MS 3000 3020 78
+03003
+03007
+0300B
+0300F
+03013
+03017
+6 match(es)
+> MS.W 3000 3020 1234
+03000
+03004
+03008
+0300C
+03010
+03014
+6 match(es)
+> MS 2000 2040 "test"
+0 match(es)
+> MM 1000 "ab"
+
+Error: number expected
+> CM 3000 300F 3008
+0 difference(s)
+> MD D0000
+
+Error: not allowed in unmapped space ($D0000-$EFFFF, bus error)
+> MD 7FFF0 20
+7FFF0  EA F1 F8 FF 06 0D 14 1B  22 29 30 37 3E 45 4C 53  ........")07>ELS
+80000  00 00 10 00 00 08 04 14  00 08 0A C2 00 08 0A CA  ................
+> MD FFFF0 20
+
+Error: not allowed in the 68681 registers ($F0000-$FFFFF; single accesses with MM only)
+> MC 80000 8000F 3000
+> MF 0 10 0
+> MF 1000 FFF 0
+
+Error: end address is below start address
+> MM.W 1001 1234
+
+Error: odd address: a word/long access here would cause an address error
+> MF 7FFF0 FFFFFFFF 1
+
+Error: address beyond $FFFFF (20-bit address bus)
+> MD 7FFFFFFF
+
+Error: address beyond $FFFFF (20-bit address bus)
+> 
+[end: 2012130428 clocks (251.516 s at 8 MHz), 96391641 instructions, 0 overruns]

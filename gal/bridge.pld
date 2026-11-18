@@ -1,0 +1,67 @@
+GAL22V10
+BRIDGE
+
+CLK  AS   RW   JSEL RDY  FC0  FC1  FC2  A1   A2   A3   GND
+RESET VPA IACK5 WBUF ABUF JDTACK LE ABR Q1   PHI2 Q0   VCC
+
+; ---------------------------------------------------------------------------
+; MC68008 core board, GAL2: Junior/Elektor bus bridge and interrupt ack.
+; Clocked by the 8 MHz CPU clock. All registers change on rising CLK.
+;
+; PHI2 = CLK/8: a free-running 1 MHz clock with 50% duty, locked to the
+; CPU. State s = (PHI2,Q1,Q0) counts 0..7; PHI2 is high in states 4..7.
+;
+; A window cycle (JSEL low, from GAL1):
+;  1. ABR (armed) is set on an edge into state 0, 1 or 2, so the bus
+;     buffers only ever switch on while PHI2 is low, and at least 250 ns
+;     before PHI2 rises. ABUF and WBUF enable the address buffers and, for
+;     writes, the data buffer.
+;  2. LE rises with PHI2 (edge 3 -> 4) when armed, and stays high for that
+;     whole PHI2-high phase. The 74HCT573 read latch is transparent while LE
+;     is high and latches as PHI2 falls. RAM.RW = /(LE * /RW) is made with
+;     a 74LS01 open-collector NAND (plus a 74LS04 for /RW) and a pull-up,
+;     as on the Junior.
+;  3. On the PHI2 falling edge (7 -> 0), if RDY is high, JDTACK is
+;     asserted. If RDY is low the access repeats in the next PHI2 phase.
+;  4. AS rises: JSEL goes high, ABUF/WBUF switch off at once, JDTACK is
+;     tri-stated and cleared on the next edge.
+; ---------------------------------------------------------------------------
+
+AR       = /RESET
+
+; 3-bit counter, PHI2 = CLK/8
+Q0.R     = /Q0
+Q1.R     = Q1 * /Q0
+         + /Q1 * Q0
+PHI2.R   = PHI2 * /Q1
+         + PHI2 * /Q0
+         + /PHI2 * Q1 * Q0
+
+; Arm: set at an edge into state 0, 1 or 2 (from 7, 0 or 1), held while JSEL.
+ABR.R    = /JSEL * ABR
+         + /JSEL * PHI2 * Q1 * Q0
+         + /JSEL * /PHI2 * /Q1
+
+; Transfer window: rises with PHI2 (3 -> 4), held through states 5..7.
+LE.R     = /JSEL * ABR * /PHI2 * Q1 * Q0 * JDTACK
+         + LE * PHI2 * /Q1
+         + LE * PHI2 * /Q0
+
+; DTACK: asserted on the PHI2 falling edge (7 -> 0) if RDY.
+/JDTACK.R = LE * PHI2 * Q1 * Q0 * RDY
+          + /JDTACK * /JSEL
+JDTACK.E = /JSEL
+
+; Buffer enables (active low), off immediately when AS ends the cycle.
+/ABUF    = /JSEL * ABR
+/WBUF    = /JSEL * ABR * /RW
+
+; Interrupt acknowledge. Level 5 (68681) gets its own vector via IACK5;
+; levels 2 (bus IRQ) and 7 (bus NMI) are autovectored via VPA.
+/IACK5   = /AS * FC2 * FC1 * FC0 * A3 * /A2 * A1
+/VPA     = /AS * FC2 * FC1 * FC0 * /A3 * A2 * /A1
+         + /AS * FC2 * FC1 * FC0 * A3 * A2 * A1
+
+DESCRIPTION
+68008 core board GAL2 (8 MHz): 1 MHz PHI2 and synchronous Junior bus
+cycles (ABUF, WBUF, LE, DTACK with RDY), IACK5 and autovector VPA.

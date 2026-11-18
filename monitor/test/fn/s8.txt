@@ -1,0 +1,12 @@
+LO
+@file hello.s28
+@wait > 
+GO
+LO
+@file apidemo.s28
+@wait > 
+GO
+@run 300000
+@send abc
+@wait > 
+VE

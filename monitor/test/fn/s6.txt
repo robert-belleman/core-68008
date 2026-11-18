@@ -1,0 +1,25 @@
+@load ap.bin 4000
+@load tp.bin 1000
+GO 4000
+@run 400000
+@send hello world
+@run 400000
+@raw 51
+@wait > 
+VE
+BR 4000
+BR 80000
+BR 1001
+MM.W 1000 4E71
+DI 1000 1
+MM.W 4000 1234
+GO 1120
+T
+R PC 1120
+T 2
+RI
+R PC 1170
+MM.L 8C 1180
+T
+VE D
+MS 1000 1300 "after"

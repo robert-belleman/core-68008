@@ -1,0 +1,33 @@
+@load tp.bin 1000
+GO 1110
+GO 1120
+GO 1300
+@run 200000
+@raw 03
+@wait > 
+GO 1300
+@run 200000
+@break
+@wait > 
+GO 1300
+@run 200000
+@nmi
+@wait > 
+GO
+@run 100000
+@raw 03
+@wait > 
+GO 1200
+RI
+R PC 1200
+T
+T
+T
+T
+T
+GO
+GO 1240
+RI
+GO 11A0
+VE
+IN

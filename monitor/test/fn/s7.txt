@@ -1,0 +1,11 @@
+@load big.bin 20000
+LO
+@file big.s
+@wait > 
+CM 10000 13FFF 20000
+IN
+@noflow
+LO
+@file big.s
+@wait > 
+IN

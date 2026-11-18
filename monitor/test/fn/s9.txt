@@ -1,0 +1,7 @@
+@load tp.bin 1000
+BR 124E
+GO 1240
+T
+T
+SO
+GO
