@@ -11,6 +11,8 @@
 # GAL1 decode.pld  map, boot overlay, DTACK, BERR, chip selects
 # GAL2 bridge.pld  Junior bus bridge (PHI2 = CLK/8, DTACK state machine)
 # GAL3 busdbg.pld  bus PHI1/PHI2/R/W, RAM.RW, BERR latch, debug outputs
+# decode_boot.pld  TEMPORARY GAL1 for flashboot/ (27128 EPROM in the SRAM
+#                   socket): make prog-decode_boot, later make prog-decode
 #
 # Override the tools on the command line, e.g.  make GALASM=galasm DEVICE=ATF22V10C
 
@@ -19,7 +21,7 @@ MINIPRO ?= minipro
 # check the exact name with:  minipro -L ATF22V10
 DEVICE  ?= ATF22V10CQZ
 
-GALS = decode bridge busdbg
+GALS = decode bridge busdbg decode_boot
 JED  = $(GALS:=.jed)
 
 all: $(JED)
