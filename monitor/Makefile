@@ -1,6 +1,7 @@
 # MON68K - ROM monitor for the core68008 board
 #
-#   make            assemble monitor.bin (256K flash image) and monitor.lst
+#   make            assemble monitor.bin (256K flash image) and monitor.lst,
+#                   with EhBASIC (basic/ehbasic.bin) at $A0000
 #   make examples   assemble the example programs as S-record files (.s28)
 #   make flash      program the SST39SF020A with the T48 (minipro)
 #   make clean
@@ -13,12 +14,16 @@ MINIPRO ?= minipro
 DEVICE  ?= SST39SF020A@PLCC32
 
 SRC = monitor.asm util.asm serial.asm except.asm cmds.asm srec.asm api.asm disasm.asm
+BASIC = basic/ehbasic.asm basic/ehbasic.inc
 
 all: monitor.bin
 
-monitor.bin: $(SRC)
+monitor.bin: $(SRC) basic/ehbasic.bin
 	$(VASM) -quiet -m68000 -Fbin -o monitor.bin -L monitor.lst monitor.asm
 	@test `wc -c < monitor.bin` -eq 262144 || (echo "monitor.bin is not 256K"; rm -f monitor.bin; exit 1)
+
+basic/ehbasic.bin: $(BASIC)
+	cd basic && $(VASM) -quiet -nowarn=2028 -m68000 -Fbin -o ehbasic.bin -L ehbasic.lst ehbasic.asm
 
 examples: examples/hello.s28 examples/apidemo.s28
 
@@ -29,6 +34,6 @@ flash: monitor.bin
 	$(MINIPRO) -p "$(DEVICE)" -w monitor.bin
 
 clean:
-	rm -f monitor.bin monitor.lst examples/*.s28 examples/*.lst
+	rm -f monitor.bin monitor.lst basic/ehbasic.bin basic/ehbasic.lst examples/*.s28 examples/*.lst
 
 .PHONY: all examples flash clean

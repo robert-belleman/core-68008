@@ -400,7 +400,16 @@ mon_entry:
                 beq    .break
                 bsr     report_exception        ; any other exception
                 bra    .show
-.exit           bsr     crlf
+.exit           move.l  r_pc,d0
+                cmpi.l  #BASIC_ROM,d0
+                blo    .exitp
+                cmpi.l  #ROM_TOP,d0
+                bhs    .exitp
+                tst.l   r_d0+4                  ; BASIC's BYE (exit code 0)
+                bne    cmd_loop                ; BASIC said why already
+                PRINT   <"Back in the monitor. BW (or GO) returns to BASIC.",13,10>
+                bra     cmd_loop
+.exitp          bsr     crlf
                 PRINT   "Program exit (TRAP #15 EXIT), D1=$"
                 move.l  r_d0+4,d0
                 bsr     puthex8

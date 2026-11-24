@@ -1,0 +1,270 @@
+[LED OP6=0 OP7=1]
+
+
+MON68K 1.0 for core68008 (MC68008, 8 MHz). Type HE for help.
+RAM $00000-$7FFFF  ROM $80000-$BFFFF  Junior bus $C0000-$CFFFF  68681 $F0000
+> BA
+[LED OP6=0 OP7=0]
+
+518676 Bytes free
+
+Enhanced 68k BASIC Version 3.54 for MON68K. BYE returns to the monitor.
+
+Ready
+
+[timeout after 'BA']
+PRINT 2+2;" ";SQR(2);" ";10/3;" ";2^10;" ";INT(-3.5)
+ 4  1.414214  3.333333 
+ 1024 -3
+
+Ready
+10 FOR I=1 TO 5
+20 PRINT I;" ";I*I;" ";SIN(I)
+30 NEXT
+LIST
+
+10 FOR I=1 TO 5
+20 PRINT I;" ";I*I;" ";SIN(I)
+30 NEXT
+
+Ready
+RUN
+ 1  1  .841471
+ 2  4  .9092974
+ 3  9  .14112
+ 4  16 -.7568025
+ 5  25 -.9589243
+
+Ready
+40 GOTO 40
+RUN
+ 1  1  .841471
+ 2  4  .9092974
+ 3  9  .14112
+ 4  16 -.7568025
+
+Break in line 20
+Ready
+CONT
+ 5  25 -.9589243
+
+Break in line 40
+Ready
+BYE
+[LED OP6=0 OP7=1]
+Back in the monitor. BW (or GO) returns to BASIC.
+> R
+PC=000A00DC  SR=2004 [-S0--Z--]  USP=0007F000  SSP=000013FC
+D0=00000000  D1=00000000  D2=00000002  D3=FFFF001A  
+D4=00000002  D5=0000001E  D6=FFFFFFD0  D7=80000000  
+A0=00001000  A1=000A33F0  A2=000A35BE  A3=00001000  
+A4=0000148E  A5=00001491  A6=00000000  A7=000013FC
+A00DC  6084                      BRA.S   $A0062
+> BW
+[LED OP6=0 OP7=0]
+
+Ready
+
+[timeout after 'BW']
+LIST
+
+10 FOR I=1 TO 5
+20 PRINT I;" ";I*I;" ";SIN(I)
+30 NEXT
+40 GOTO 40
+
+Ready
+BYE
+[LED OP6=0 OP7=1]
+Back in the monitor. BW (or GO) returns to BASIC.
+> GO
+[LED OP6=0 OP7=0]
+
+Ready
+
+[timeout after 'GO']
+RUN
+ 1  1  .841471
+ 2  4  .909297[LED OP6=0 OP7=1]
+
+Break
+PC=000A0026  SR=2000 [-S0-----]  USP=0007F000  SSP=000013C8
+D0=00000037  D1=00000037  D2=00000022  D3=FFFF0022  
+D4=00000002  D5=0000001E  D6=FFFFFFD0  D7=80000000  
+A0=0007FFFE  A1=00001476  A2=000015CF  A3=00001000  
+A4=0000148E  A5=00001619  A6=00000000  A7=000013C8
+A0026  4CDF 0003                 MOVEM.L (A7)+,D0-D1
+> GO
+[LED OP6=0 OP7=0]
+4
+ 3  9  .14112
+ 4  16 -.7568025
+ 5  25 -.9589243
+
+[timeout after 'GO']
+
+Break in line 40
+Ready
+? FRE(0)
+ 518594
+
+Ready
+BYE
+[LED OP6=0 OP7=1]
+Back in the monitor. BW (or GO) returns to BASIC.
+> [LED OP6=0 OP7=1]
+
+
+MON68K 1.0 for core68008 (MC68008, 8 MHz). Type HE for help.
+RAM $00000-$7FFFF  ROM $80000-$BFFFF  Junior bus $C0000-$CFFFF  68681 $F0000
+> IN
+MON68K 1.0  MC68008 at 8 MHz, 20-bit address bus
+  $00000-$003FF  vector table (RAM copy, user may change)
+  $00400-$00FFF  monitor workspace and stack (protected)
+  $01000-$7FFFF  user RAM
+  $80000-$BFFFF  flash ROM (monitor; read-only here)
+  $C0000-$CFFFF  Junior bus window (1 MHz bus cycles)
+  $D0000-$EFFFF  unmapped (bus error)
+  $F0000-$FFFFF  68681 DUART (16 registers, repeated)
+Console 38400 8N1 on channel A, RTS/CTS (RTS from the receiver)
+Receive errors since reset: none
+Ctrl-C break into the monitor: on
+> BW
+[LED OP6=0 OP7=0]
+
+Ready
+
+[timeout after 'BW']
+LIST 10-30
+
+10 FOR I=1 TO 5
+20 PRINT I;" ";I*I;" ";SIN(I)
+30 NEXT
+
+Ready
+NEW
+
+Ready
+100 REM SIEVE OF ERATOSTHENES, PASTED AS ONE BLOCK
+110 N=1000
+120 DIM F(N)
+130 C=0
+140 FOR I=2 TO N
+150 IF F(I) THEN 200
+160 C=C+1
+170 IF C<=20 THEN PRINT I;" ";
+175 IF I*I>N THEN 200
+180 FOR J=I*I TO N STEP I:F(J)=1:NEXT J
+200 NEXT I
+210 PRINT
+220 PRINT C;" PRIMES BELOW ";N
+230 A$="core68008":PRINT UCASE$(A$);" ";LEN(A$);" ";HEX$(PEEK($A0000));" ";BIN$(
+5)
+240 DO:K=K+1:LOOP UNTIL K=3:PRINT "DO LOOP ";K
+250 PRINT USING$("###.##",PI)
+LIST
+
+100 REM SIEVE OF ERATOSTHENES, PASTED AS ONE BLOCK
+110 N=1000
+120 DIM F(N)
+130 C=0
+140 FOR I=2 TO N
+150 IF F(I) THEN 200
+160 C=C+1
+170 IF C<=20 THEN PRINT I;" ";
+175 IF I*I>N THEN 200
+180 FOR J=I*I TO N STEP I:F(J)=1:NEXT J
+200 NEXT I
+210 PRINT
+220 PRINT C;" PRIMES BELOW ";N
+230 A$="core68008":PRINT UCASE$(A$);" ";LEN(A$);" ";HEX$(PEEK($A0000));" ";BIN$(
+5)
+240 DO:K=K+1:LOOP UNTIL K=3:PRINT "DO LOOP ";K
+250 PRINT USING$("###.##",PI)
+
+Ready
+RUN
+ 2  3  5  7  11 
+ 13  17  19  23 
+ 29  31  37  41 
+ 43  47  53  59 
+ 61  67  71 
+ 168 PRIMES BELOW 
+ 1000
+CORE68008  9 60 101
+DO LOOP  3
+  3.14
+
+Ready
+LOAD
+
+Not implemented Error
+Ready
+BYE
+[LED OP6=0 OP7=1]
+Back in the monitor. BW (or GO) returns to BASIC.
+> BA 4000
+
+Error: BA top: even, $05000-$80000 (BASIC needs 16K)
+> BA 5000
+[LED OP6=0 OP7=0]
+
+14868 Bytes free
+
+Enhanced 68k BASIC Version 3.54 for MON68K. BYE returns to the monitor.
+
+Ready
+
+[timeout after 'BA 5000']
+? FRE(0)
+ 14864
+
+Ready
+BYE
+[LED OP6=0 OP7=1]
+Back in the monitor. BW (or GO) returns to BASIC.
+> BW 2001
+
+Error: BW start: even, $01000-$7C000
+> BW 20000
+[LED OP6=0 OP7=0]
+No BASIC program in memory there, use BA for a cold start
+[LED OP6=0 OP7=1]
+> BW 1000
+[LED OP6=0 OP7=0]
+
+Ready
+
+[timeout after 'BW 1000']
+BYE
+[LED OP6=0 OP7=1]
+Back in the monitor. BW (or GO) returns to BASIC.
+> HE
+MON68K commands (numbers are hex; #dec %bin 'c' .reg; + and - allowed)
+ MD [addr [len]]          memory dump (Enter continues)
+ MM[.B/.W/.L] addr [v..]  modify memory; no values: interactive
+                          (Enter next, - back, . quit)
+ MF[.B/.W/.L] start end v fill memory
+ MC start end dest        copy memory (overlap safe)
+ MS[.B/.W/.L] start end v [v..]  search;  MS start end "text"
+ CM start end dest        compare memory
+ LO [offset]              load S-records (S1/S2/S3, S5/S6, S7/S8/S9)
+ DU start end [entry]     dump memory as S-records
+ GO [addr]                run (from addr, or continue)
+ GT addr                  run until addr
+ CALL addr                call a subroutine; RTS returns to the monitor
+ T [n]                    trace n instructions (Enter repeats)
+ SO                       step over BSR/JSR/TRAP
+ R  /  R reg value        show / set registers (D0-D7 A0-A7 SP PC SR USP SSP)
+ RI                       reset program registers to defaults
+ BR [addr [count]]        set / list breakpoints (8)
+ BC [n | addr]            clear one / all breakpoints
+ DI [addr [n]]            disassemble (Enter continues)
+ VE [D]                   list changed exception vectors (D: restore all)
+ IN                       memory map and status
+ BA [top]                 EhBASIC, cold start (RAM $01000 to top-1)
+ BW [start]               EhBASIC, warm start (keeps the program)
+Ctrl-C or BREAK stops a running program; NMI too. Programs call the monitor
+with TRAP #15 (D0.W = function), see MONITOR.md.
+> 
+[end: 2861408934 clocks (357.676 s at 8 MHz), 132128397 instructions, 0 overruns]

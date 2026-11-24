@@ -206,6 +206,9 @@ cmd_so_i        equ     4
                 CMD     "IN",cmd_info
                 CMD     "INFO",cmd_info
                 CMD     "VE",cmd_ve
+                CMD     "BA",cmd_ba
+                CMD     "BASIC",cmd_ba
+                CMD     "BW",cmd_bw
                 dc.b    0                       ; end of table
                 even
 
@@ -1219,6 +1222,60 @@ cmd_call:
 .bad            move.l  d7,r_pc
                 ERROR   "the active stack pointer must be even and in RAM $01004-$80000"
 
+;------------------------------------------------------------ BA / BW
+; BA [top]   EhBASIC cold start with RAM $01000 to top-1 (default: all RAM)
+; BW [start] EhBASIC warm start: back to the program in RAM. BASIC itself
+;            checks that a session it started is there.
+; BASIC runs as a normal program (supervisor mode, SR = $2000, its own
+; stack inside its RAM), so BREAK, NMI, R and GO work as usual.
+cmd_ba:
+                bsr     opt_expr
+                bcc    .t
+                move.l  #RAM_TOP,d0
+.t              bsr     end_args
+                btst    #0,d0
+                bne    .bad
+                cmpi.l  #USER_RAM+$4000,d0
+                blo    .bad
+                cmpi.l  #RAM_TOP,d0
+                bhi    .bad
+                subi.l  #USER_RAM,d0
+                move.l  d0,r_d0                 ; D0 = size
+                move.l  #USER_RAM,d0
+                move.l  d0,v_basbase
+                move.l  #BASIC_COLD,d1
+                bra    bas_start
+.bad            ERROR   "BA top: even, $05000-$80000 (BASIC needs 16K)"
+
+cmd_bw:
+                bsr     opt_expr
+                bcc    .s
+                move.l  v_basbase,d0
+                bne    .s
+                move.l  #USER_RAM,d0            ; after a reset: the default place
+.s              bsr     end_args
+                btst    #0,d0
+                bne    .bad
+                cmpi.l  #USER_RAM,d0
+                blo    .bad
+                cmpi.l  #RAM_TOP-$4000,d0
+                bhi    .bad
+                move.l  d0,v_basbase
+                move.l  #BASIC_WARM,d1
+                bra    bas_start
+.bad            ERROR   "BW start: even, $01000-$7C000"
+
+; bas_start: D0 = BASIC RAM start, D1 = entry point
+bas_start:
+                move.l  d0,r_a0                 ; A0 = RAM start
+                addi.l  #$400,d0                ; frame goes where BASIC's stack will be
+                move.l  d0,r_ssp
+                move.l  d1,r_pc
+                move.w  #USER_SR_INIT,r_sr
+                clr.b   v_incall
+                clr.b   v_stepmode
+                bra     mon_resume
+
 ;------------------------------------------------------------ T / SO
 ; T [n]   trace n instructions (default 1); empty line repeats
 cmd_t:
@@ -1592,6 +1649,8 @@ help_text:
  dc.b " DI [addr [n]]            disassemble (Enter continues)",13,10
  dc.b " VE [D]                   list changed exception vectors (D: restore all)",13,10
  dc.b " IN                       memory map and status",13,10
+ dc.b " BA [top]                 EhBASIC, cold start (RAM $01000 to top-1)",13,10
+ dc.b " BW [start]               EhBASIC, warm start (keeps the program)",13,10
  dc.b "Ctrl-C or BREAK stops a running program; NMI too. Programs call the monitor",13,10
  dc.b "with TRAP #15 (D0.W = function), see MONITOR.md.",13,10
  dc.b 0

@@ -15,6 +15,7 @@ RAM $00000-$7FFFF  ROM $80000-$BFFFF  Junior bus $C0000-$CFFFF  68681 $F0000
 | Assemble | `make` (runs `/opt/homebrew/bin/vasmm68k_mot -m68000 -Fbin`, gives `monitor.bin`, exactly 262144 bytes, and `monitor.lst`) |
 | Program the flash | `make flash`. This runs `minipro -p "SST39SF020A@PLCC32" -w monitor.bin`. Check the device name first with `minipro -L SST39SF020`. You need the PLCC32-to-DIP32 adapter. |
 | Example programs | `make examples` gives `examples/hello.s28` and `examples/apidemo.s28` |
+| EhBASIC | `make` first assembles `basic/ehbasic.asm` into `basic/ehbasic.bin` (linked at $A0000). `monitor.asm` pads the image to $A0000 and includes it. |
 
 The image is linked at $80000. The CPU fetches the reset vectors from flash offsets 0 and 4 through the boot overlay (see H2).
 
@@ -67,6 +68,8 @@ Default user registers (`RI` restores them): PC=$1000, SR=$2000 (supervisor, mas
 | `DI [addr [n]]` | Disassemble (vasm syntax, see below) |
 | `VE` / `VE D` | List vectors that no longer point to the monitor, or restore all of them |
 | `IN` | Memory map, console settings, receive error flags |
+| `BA [top]` | Start EhBASIC from scratch (cold start), with RAM $01000 to top-1 (default $80000, so all of user RAM) |
+| `BW [start]` | Go back into EhBASIC (warm start). The program and variables stay. |
 | `HE`, `HELP`, `?` | Help |
 
 ### S-record loading (`LO`)
@@ -84,6 +87,30 @@ Default user registers (`RI` restores them): PC=$1000, SR=$2000 (supervisor, mas
 It covers the complete MC68000 instruction set. Output is vasm Motorola syntax, with branch and PC-relative targets shown as absolute addresses. Words that are not valid 68000 instructions show as `DC.W $xxxx`. The A-line and F-line opcodes are among those, because the 68000 takes an exception on them.
 
 **Tested:** all 65,536 first words, with three different sets of extension words. Every one of the 45,816 decodable instructions per set was reassembled with vasm and gave back **the same bytes**. The only differences are bits the 68000 ignores: the high byte of a byte immediate, and bits 8-10 of a brief index extension word. The set of opcodes accepted as valid matches Musashi's MC68000 table, apart from `ILLEGAL` ($4AFC, shown by name) and 16 `Bcc.S` with displacement $FF (odd target on a 68000, shown as such).
+
+## EhBASIC (`BA`, `BW`)
+
+The flash holds Lee Davison's Enhanced BASIC 3.54 for the 68000 at $A0000 (source in `basic/`, based on Jeff Tranter's TS2 port). EhBASIC is free for personal and educational use only; see the header of `basic/ehbasic.asm`. The language manual is at http://retro.hansotten.nl/home/lee-davison-web-site/.
+
+```
+> BA
+ 518676 Bytes free
+
+Enhanced 68k BASIC Version 3.54 for MON68K. BYE returns to the monitor.
+
+Ready
+```
+
+* **`BA [top]`** is a cold start. Any program in memory is lost. BASIC gets $01000 up to top-1. Give a lower top, e.g. `BA 70000`, to keep $70000-$7FFFF free for machine code that you `CALL` from BASIC. It needs at least 16K.
+* **`BW [start]`** is a warm start. BASIC checks that the RAM still holds a session it started (warm start vector, program start, end of memory). If it does, you get `Ready` with the program and variables kept. If it doesn't, it says so and nothing is changed. This also works after the reset button, because the SRAM keeps its contents. `start` is only needed if the session doesn't start at $01000.
+* **Keywords are upper case** (`PRINT`, not `print`). Variable names can be either case, and `x` and `X` are different variables.
+* **Ctrl-C** stops a BASIC program (`Break in line n`) and `CONT` continues it. While BASIC runs, the monitor's own Ctrl-C break is off (`IN` shows this). BASIC turns it back on when you leave with `BYE`.
+* **`BYE`** goes back to the monitor. `BW` or `GO` returns to `Ready`.
+* **A serial BREAK or the NMI** stops BASIC and shows the registers, like any program. `GO` continues where it was, and `BW` goes to `Ready`.
+* **`LOAD` and `SAVE`** give `Not implemented Error`, because the board has no storage. To keep a program, `LIST` it and capture the text in your terminal. To load one, type `NEW` and paste it. RTS/CTS flow control makes pasting safe, even though each line takes a moment to tokenise.
+* **`PEEK`, `POKE`, `DEEK`, `DOKE`, `LEEK`, `LOKE`** go straight to the bus, so `PEEK($C0000)` reads the Junior window and `POKE $F0000+n,v` writes a 68681 register. Word and long accesses need even addresses. `CALL addr` runs machine code, which ends with `RTS`. An address in $D0000-$EFFFF gives a bus error, and the monitor shows it.
+* BASIC runs in supervisor mode with SR=$2000 and keeps its 1K stack at the start of its RAM. The monitor commands and breakpoints still work. A breakpoint in BASIC's RAM would be overwritten by the program, so only put breakpoints in machine code that BASIC calls.
+* The `ON IRQ`/`ON NMI` statements of the 6502 EhBASIC don't exist in the 68000 version.
 
 ## Debugging: how it works
 

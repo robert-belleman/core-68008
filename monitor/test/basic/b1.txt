@@ -1,0 +1,79 @@
+# EhBASIC in the ROM: run from test/emu with
+#   ./emu -r ../../monitor.bin -s ../basic/b1.txt
+# cold start, immediate mode, program entry, LIST/RUN, Ctrl-C and CONT,
+# BYE, BW warm start, GO after BYE, BREAK into the monitor and GO back,
+# reset and warm start, a pasted program with flow control, range checks
+BA
+@wait Ready
+@send PRINT 2+2;" ";SQR(2);" ";10/3;" ";2^10;" ";INT(-3.5)
+@wait Ready
+@send 10 FOR I=1 TO 5
+@send 20 PRINT I;" ";I*I;" ";SIN(I)
+@send 30 NEXT
+@send LIST
+@wait Ready
+@send RUN
+@wait Ready
+@send 40 GOTO 40
+@send RUN
+@run 400000
+@raw 03
+@wait Ready
+@send CONT
+@run 200000
+@raw 03
+@wait Ready
+@send BYE
+@wait > 
+R
+BW
+@wait Ready
+@send LIST
+@wait Ready
+@send BYE
+@wait > 
+GO
+@wait Ready
+@send RUN
+@run 200000
+@break
+@wait > 
+GO
+@run 200000
+@raw 03
+@wait Ready
+@send ? FRE(0)
+@wait Ready
+@send BYE
+@wait > 
+@reset
+IN
+BW
+@wait Ready
+@send LIST 10-30
+@wait Ready
+@send NEW
+@wait Ready
+@file ../basic/sieve.bas
+@send LIST
+@wait Ready
+@send RUN
+@wait Ready
+@send LOAD
+@wait Ready
+@send BYE
+@wait > 
+BA 4000
+BA 5000
+@wait Ready
+@send ? FRE(0)
+@wait Ready
+@send BYE
+@wait > 
+BW 2001
+BW 20000
+BW 1000
+@wait Ready
+@send BYE
+@wait > 
+HE

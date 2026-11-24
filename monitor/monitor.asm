@@ -80,6 +80,9 @@ RAM_TOP         equ     $80000          ; first address above the SRAM
 ROM_BASE        equ     $80000
 ROM_SIZE        equ     $40000          ; 256K
 ROM_TOP         equ     $C0000
+BASIC_ROM       equ     $A0000          ; EhBASIC image (basic/ehbasic.bin), see BA/BW
+BASIC_COLD      equ     BASIC_ROM       ; A0 = RAM start, D0 = RAM size
+BASIC_WARM      equ     BASIC_ROM+4     ; A0 = RAM start
 WIN_BASE        equ     $C0000          ; Junior bus window
 WIN_TOP         equ     $D0000
 NONE_BASE       equ     $D0000          ; bus error range
@@ -225,6 +228,7 @@ v_recpc         rs.l    1
 v_tmp           rs.l    4
 v_decbuf        rs.b    12              ; putdec/s_dec digits (built backwards)
 v_dis_sp        rs.l    1               ; dis_one stack pointer for d_invalid
+v_basbase       rs.l    1               ; RAM start of the last BA (0: none since reset)
 ; ---- user context (saved on every entry, loaded on every resume)
 r_d0            rs.l    8               ; D0-D7
 r_a0            rs.l    7               ; A0-A6
@@ -468,6 +472,13 @@ IDATA_ROM_END:
                 include "api.asm"
                 include "disasm.asm"
 ;=============================================================================
+
+;------------------------------------------------ EhBASIC (assembled separately)
+                if      *>BASIC_ROM
+                fail    "the monitor has grown into the BASIC area at BASIC_ROM"
+                endif
+                dcb.b   BASIC_ROM-*,$FF
+basic_image:    incbin  "basic/ehbasic.bin"
 
 rom_end:
                 if      rom_end>(ROM_BASE+ROM_SIZE)
