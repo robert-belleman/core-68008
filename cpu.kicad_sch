@@ -4052,9 +4052,9 @@
 			(embedded_fonts no)
 		)
 	)
-	(text "MC68008 (DIP-48). J4: logic-analyser header (pins 19/20 GND); D7 = sticky BERR from GAL3. Bus NMI pulls both IPL lines (level 7); bus IRQ is level 2; the 68681 is level 5."
+	(text "MC68008 (DIP-48)\nJ4: logic-analyser header (pins 21/22 GND)\nD7 = sticky BERR from GAL3\nBus NMI pulls both IPL lines (level 7)\nBus IRQ is level 2\nThe 68681 is level 5"
 		(exclude_from_sim no)
-		(at 25 32 0)
+		(at 37.338 38.354 0)
 		(effects
 			(font
 				(size 2 2)
@@ -4073,6 +4073,16 @@
 			(justify left)
 		)
 		(uuid "dc9d3375-711d-481c-a8c7-4e2203c5a4d1")
+	)
+	(text "NOTE: these are 9-resistor arrays.\nPretty hard to come by. Change to 8?\nRN2 should be on page DUART. ~BR should be on another resistor.\n10k for RXDA is too much in combination with a USB-to-TTL-serial module: 100k?"
+		(exclude_from_sim no)
+		(at 221.234 42.418 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "f2055a00-9009-479a-99b0-fa3b5b0bab40")
 	)
 	(no_connect
 		(at 135.89 99.06)
