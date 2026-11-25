@@ -1,0 +1,10 @@
+@fast
+MF 10000 4FFFF FF
+@send LO
+@file ../../flashupd/flashupd.s28
+@run 8000000
+@send GO
+@wait (Y/N)?
+@send N
+@run 400000
+@save /tmp/fu3.bin

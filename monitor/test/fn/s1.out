@@ -173,4 +173,4 @@ A0=00000000  A1=00000000  A2=00000000  A3=00000000
 A4=00000000  A5=00000000  A6=00000000  A7=0007FFFC
 01106  0000 0000                 ORI.B   #$0,D0
 > 
-[end: 3673698 clocks (0.459 s at 8 MHz), 144663 instructions, 0 overruns]
+[end: 3672738 clocks (0.459 s at 8 MHz), 144667 instructions, 0 overruns]

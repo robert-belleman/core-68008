@@ -1,0 +1,6 @@
+@fast
+@send LO
+@file ../../flashupd/flashupd.s28
+@run 8000000
+GO
+@save /tmp/fu2.bin

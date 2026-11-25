@@ -1,0 +1,13 @@
+@load ../../monitor.bin 10000
+FL 10000 4FFFF 80000
+MM.L 10004 00012345
+FL 10000 4FFFF 80000 !
+MM.L 10004 00000000
+@load ../../monitor.bin 10000
+@send FL 10000 4FFFF 80000 !
+@wait (Y/N)?
+@send Y
+@wait Type HE for help.
+@run 2000000
+IN
+@save /tmp/fl2.bin

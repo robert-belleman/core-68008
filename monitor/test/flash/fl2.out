@@ -1,0 +1,51 @@
+[LED OP6=0 OP7=1]
+
+
+MON68K 1.0 for core68008 (MC68008, 8 MHz). Type HE for HELP.
+RAM $00000-$7FFFF  ROM $80000-$BFFFF  Junior bus $C0000-$CFFFF  68681 $F0000
+> FL 10000 4FFFF 80000
+Flash ID $BFB6: SST39SF020A
+Flash $80000-$BFFFF from RAM $10000: erase 1 sector(s), program 4077 byte(s)
+
+Error: this changes the monitor itself ($80000-$86FFF).
+Add ! to do it anyway. The board then restarts with the new monitor.
+> MM.L 10004 00012345
+> FL 10000 4FFFF 80000 !
+Flash ID $BFB6: SST39SF020A
+Flash $80000-$BFFFF from RAM $10000: erase 1 sector(s), program 4077 byte(s)
+
+Error: the new reset vector (flash offset 4) would be $00012345,
+not an even address in the flash, so the board could not start.
+Check the image and the FL addresses.
+> MM.L 10004 00000000
+> FL 10000 4FFFF 80000 !
+Flash ID $BFB6: SST39SF020A
+Flash $80000-$BFFFF from RAM $10000: erase 1 sector(s), program 4077 byte(s)
+This rewrites the running monitor. Keep the power on and don't press reset
+until the new monitor starts. If a step fails, you can try it again.
+Program the flash (Y/N)? Y
+Erasing     .
+Programming ................................................................
+Verifying   OK
+Starting the new monitor.
+[RESET instruction: 68681 reset]
+[LED OP6=0 OP7=1]
+
+
+MON68K 1.0 for core68008 (MC68008, 8 MHz). Type HE for help.
+RAM $00000-$7FFFF  ROM $80000-$BFFFF  Junior bus $C0000-$CFFFF  68681 $F0000
+> IN
+MON68K 1.0  MC68008 at 8 MHz, 20-bit address bus
+  $00000-$003FF  vector table (RAM copy, user may change)
+  $00400-$00FFF  monitor workspace and stack (protected)
+  $01000-$7FFFF  user RAM
+  $80000-$BFFFF  flash ROM (monitor and EhBASIC; FL programs it)
+  $C0000-$CFFFF  Junior bus window (1 MHz bus cycles)
+  $D0000-$EFFFF  unmapped (bus error)
+  $F0000-$FFFFF  68681 DUART (16 registers, repeated)
+Console 38400 8N1 on channel A, RTS/CTS (RTS driven by the monitor)
+Receive errors since reset: none
+Ctrl-C break into the monitor: on
+> 
+[end: 162813812 clocks (20.352 s at 8 MHz), 13313389 instructions, 0 overruns]
+[flash: 4077 bytes programmed, 1 sector erases, 0 chip erases]

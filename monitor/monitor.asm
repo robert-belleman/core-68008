@@ -13,6 +13,7 @@
 ;          srec.asm      Motorola S-record loader and dumper
 ;          api.asm       TRAP #15 service interface for user programs
 ;          disasm.asm    MC68000 disassembler
+;          flash.asm     FL command: program the flash from RAM
 ;
 ; The hardware facts this code depends on are listed under HARDWARE
 ; ASSUMPTIONS below and in MONITOR.md. They come from the board's netlist
@@ -25,7 +26,8 @@
 ; H1  Memory map (GAL1 decode.pld):
 ;       $00000-$7FFFF  512K SRAM AS6C4008, no wait states
 ;       $80000-$BFFFF  256K flash SST39SF020A, no wait states. Writes reach the
-;                      flash /WE but only an SST command sequence changes it.
+;                      flash /WE but only an SST command sequence changes it
+;                      (the FL command, flash.asm).
 ;       $C0000-$CFFFF  Junior/Elektor bus window (1 MHz PHI2 bridge, GAL2).
 ;                      Always acknowledged (JDTACK), even if no card answers.
 ;       $D0000-$EFFFF  unmapped: GAL1 asserts BERR -> bus error exception.
@@ -49,7 +51,10 @@
 ;     Level 7 is edge-triggered by the CPU and cannot be masked.
 ; H5  68681 clock: 3.6864 MHz crystal (Y1). Baud rate set 1 (ACR[7]=0) has
 ;     38.4K at CSR code $C. Channel A: TxDA->FTDI RXD, RxDA<-FTDI TXD,
-;     OP0 = RTSN -> FTDI CTS#, IP0 = CTSN <- FTDI RTS#.
+;     OP0 = RTSN -> FTDI CTS#, IP0 = CTSN <- FTDI RTS#. The monitor drives
+;     OP0 through the OPR (serial.asm); the 68681's RxRTS mode is off, because
+;     it negates RTSN only when the 3-character FIFO is full, and an FTDI
+;     still sends up to 3 characters after that, which then overrun.
 ; H6  OP6 and OP7 drive green LEDs D5/D6 to +5V through 2k2: an OPR bit set
 ;     to 1 drives the pin low and lights the LED. OP7 = "monitor active",
 ;     OP6 is left to user programs (API function LED).
@@ -148,7 +153,7 @@ IM_RXRDYA       equ     1
 ; serial configuration (see H5)
 BAUD_ACR        equ     $00             ; set 1, C/T in counter mode (unused)
 BAUD_CSR        equ     $CC             ; 38400 Rx and Tx with ACR[7]=0
-MR1A_VAL        equ     $93             ; RxRTS on, RxRDY irq, char errors, no parity, 8 bits
+MR1A_VAL        equ     $13             ; no RxRTS (the monitor drives OP0), RxRDY irq, char errors, no parity, 8 bits
 MR2A_VAL        equ     $07             ; normal mode, no TxRTS, no CTS gating, 1 stop bit
                                         ; ($17 enables CTS gating of the transmitter)
 VEC_DUART       equ     64              ; IVR value: first user interrupt vector
@@ -180,8 +185,8 @@ BP_TEMP         equ     NBP             ; index of the temporary breakpoint
 NBPALL          equ     NBP+1
 
 LINEMAX         equ     80              ; command line length (with NUL)
-RX_HIWATER      equ     192             ; stop taking characters at this fill
-RX_LOWATER      equ     64              ; and resume below this
+RX_HIWATER      equ     128             ; negate RTS at this ring fill (127 slots of slack)
+RX_LOWATER      equ     64              ; assert it again below this
 TX_TIMEOUT      equ     150000          ; about 1 s of TxRDY polling
 
 ;-------------------------------------------------------------- RAM layout
@@ -200,7 +205,7 @@ IDATA_START     rs.b    0
 v_abort_en      rs.b    1               ; Ctrl-C breaks into the monitor
 v_echo          rs.b    1               ; echo while reading a command line
 v_imr           rs.b    1               ; shadow of the write-only IMR
-v_pad0          rs.b    1
+v_rtsoff        rs.b    1               ; $FF while the monitor holds RTS negated
 v_mdlen         rs.l    1               ; default MD length
 v_dilen         rs.l    1               ; default DI count
 IDATA_END       rs.b    0
@@ -455,7 +460,7 @@ IDATA_ROM:
                 dc.b    1                       ; v_abort_en
                 dc.b    1                       ; v_echo
                 dc.b    0                       ; v_imr
-                dc.b    0                       ; pad
+                dc.b    0                       ; v_rtsoff
                 dc.l    $80                     ; v_mdlen
                 dc.l    16                      ; v_dilen
 IDATA_ROM_END:
@@ -471,7 +476,10 @@ IDATA_ROM_END:
                 include "srec.asm"
                 include "api.asm"
                 include "disasm.asm"
+                include "flash.asm"
 ;=============================================================================
+
+mon_code_end:                                   ; end of the monitor (FL protects up to here)
 
 ;------------------------------------------------ EhBASIC (assembled separately)
                 if      *>BASIC_ROM

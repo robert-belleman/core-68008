@@ -1,0 +1,11 @@
+@fast
+MF 10000 4FFFF FF
+@send LO
+@file ../../monitor.s28
+@run 8000000
+@send FL 10000 4FFFF 80000 !
+@wait (Y/N)?
+@send Y
+@wait Type HE for help.
+@run 2000000
+@save /tmp/fl3.bin

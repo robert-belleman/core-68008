@@ -16,6 +16,7 @@ RAM $00000-$7FFFF  ROM $80000-$BFFFF  Junior bus $C0000-$CFFFF  68681 $F0000
 | Program the flash | `make flash`. This runs `minipro -p "SST39SF020A@PLCC32" -w monitor.bin`. Check the device name first with `minipro -L SST39SF020`. You need the PLCC32-to-DIP32 adapter. |
 | Example programs | `make examples` gives `examples/hello.s28` and `examples/apidemo.s28` |
 | EhBASIC | `make` first assembles `basic/ehbasic.asm` into `basic/ehbasic.bin` (linked at $A0000). `monitor.asm` pads the image to $A0000 and includes it. |
+| Update over the serial line | `make s28`, then `LO` and `FL` on the board (see "Programming the flash") |
 
 The image is linked at $80000. The CPU fetches the reset vectors from flash offsets 0 and 4 through the boot overlay (see H2).
 
@@ -26,7 +27,7 @@ The image is linked at $80000. The CPU fetches the reset vectors from flash offs
 | $00000-$003FF | Exception vectors (RAM copy, made at reset) | read/write; `VE` shows changes |
 | $00400-$00FFF | Monitor workspace and monitor stack | read only (protected) |
 | $01000-$7FFFF | **User RAM** | everything |
-| $80000-$BFFFF | Flash (monitor) | read, disassemble; no writes |
+| $80000-$BFFFF | Flash (monitor) | read, disassemble; `FL` programs it |
 | $C0000-$CFFFF | Junior bus window (1 MHz cycles) | everything, including breakpoints |
 | $D0000-$EFFFF | Unmapped: the GAL asserts BERR | refused |
 | $F0000-$FFFFF | 68681 (16 registers, repeated) | single `MM` accesses only |
@@ -70,6 +71,8 @@ Default user registers (`RI` restores them): PC=$1000, SR=$2000 (supervisor, mas
 | `IN` | Memory map, console settings, receive error flags |
 | `BA [top]` | Start EhBASIC from scratch (cold start), with RAM $01000 to top-1 (default $80000, so all of user RAM) |
 | `BW [start]` | Go back into EhBASIC (warm start). The program and variables stay. |
+| `FL` | Show the flash ID and the protected monitor sectors |
+| `FL start end dest [!]` | Program RAM start..end into the flash at dest (see "Programming the flash"). `!` allows changing the monitor itself. |
 | `HE`, `HELP`, `?` | Help |
 
 ### S-record loading (`LO`)
@@ -111,6 +114,98 @@ Ready
 * **`PEEK`, `POKE`, `DEEK`, `DOKE`, `LEEK`, `LOKE`** go straight to the bus, so `PEEK($C0000)` reads the Junior window and `POKE $F0000+n,v` writes a 68681 register. Word and long accesses need even addresses. `CALL addr` runs machine code, which ends with `RTS`. An address in $D0000-$EFFFF gives a bus error, and the monitor shows it.
 * BASIC runs in supervisor mode with SR=$2000 and keeps its 1K stack at the start of its RAM. The monitor commands and breakpoints still work. A breakpoint in BASIC's RAM would be overwritten by the program, so only put breakpoints in machine code that BASIC calls.
 * The `ON IRQ`/`ON NMI` statements of the 6502 EhBASIC don't exist in the 68000 version.
+
+## Programming the flash (`FL`)
+
+`FL` writes a block of RAM into the flash (SST39SF020A) on the board. You can use it to update the monitor itself over the serial line, without FLASHBOOT and without the T48, or to put your own code or data in the free part of the flash.
+
+| Command | Meaning |
+|---|---|
+| `FL` | Show the flash ID ($BFB6 for the SST39SF020A) and which sectors hold the monitor |
+| `FL start end dest` | Program RAM `start`..`end` (inclusive) into the flash at `dest` |
+| `FL start end dest !` | The same, and also allow changes to the monitor's own sectors |
+
+What `FL` does:
+
+1. It checks the arguments. The source must be in user RAM ($01000-$7FFFF) and the whole destination must be in the flash ($80000-$BFFFF).
+2. It reads the chip ID. If the ID is not $BFB6 (SST39SF020A) or $BFB7 (SST39SF040), it stops. A wrong ID usually means that the flash doesn't see its write strobe (/WE).
+3. It works out the job one 4K sector at a time. A sector is erased only if a byte has to change a 0 bit back into a 1. Otherwise its bytes are programmed over the old ones. Only the bytes that differ are programmed. If a sector has to be erased but also holds data outside your range that is not $FF, `FL` refuses, because the erase would lose that data. Then copy that data into your RAM image as well (`MC`) and flash whole sectors.
+4. It prints the plan (`erase n sector(s), program n byte(s)`) and asks `Program the flash (Y/N)?`. Type `Y` and Enter to go on; anything else cancels. If the flash already holds the data, it says so and does nothing.
+5. It erases, programs and then compares the whole range with the RAM (`Verifying   OK`). If something fails, you get the address, the value it wrote and the value it reads back.
+
+The routine that talks to the chip (about 1K) is copied onto the monitor stack and runs from RAM, with interrupts masked, because the flash can't be read while it erases or programs. Ctrl-C, BREAK and the NMI are ignored while it runs. Erasing takes about 25 ms per sector, and programming takes about 40 µs per byte, so a whole monitor update takes a few seconds.
+
+### Protection of the running monitor
+
+The sectors from $80000 to the end of the monitor code (`FL` without arguments shows the range) are protected. A job that would change one of them is refused unless you add `!`. With `!`:
+
+* `FL` first checks that the reset vector the flash will hold afterwards (offset 4) is an even address in the flash. If it isn't, the board could not start, so `FL` refuses.
+* After a successful verify, the board doesn't return to the old monitor (it is gone). It prints `Starting the new monitor.`, executes `RESET` (68681 and Junior bus) and jumps through the new reset vector, the same way as after power-on. User RAM above $01000 keeps its contents.
+* If a step fails, the monitor in the flash is incomplete. The routine then stays in RAM and waits: press `R` to run the whole job again. Keep the power on. If it keeps failing, program the flash with FLASHBOOT or the T48.
+
+EhBASIC ($A0000) and the free space between the monitor and EhBASIC are not protected.
+
+### The first time: FLASHUPD
+
+A monitor without `FL` (such as commit a5707a9) can't run `FL`. For that case, `make flashupd` makes `flashupd/flashupd.s28`, which holds a small RAM program (FLASHUPD, at $01000) and the new image (at $10000). The file is about 99K (101790 bytes), so it takes about 27 seconds at 38400 baud (3840 characters per second). On the board:
+
+```
+> MF 10000 4FFFF FF
+> LO
+Send the S-record file now (ESC or Ctrl-C cancels)
+                                (send flashupd/flashupd.s28 from your terminal)
+> GO
+```
+
+LO sets the PC to $01000, so `GO` starts FLASHUPD. It first checks the image in RAM against a sum that `make` stored in it, so a forgotten `MF` or a lost record is caught before anything is erased. Then it checks the image's reset vector and the flash ID, shows the plan and asks Y/N. After `Y` it uses the same engine as `FL`: erase, program, verify, and it starts the new monitor. If a step fails, you get the same `R` retry. Example (emulator test fu1, updating the a5707a9 monitor):
+
+```
+FLASHUPD: put the MON68K image at RAM $10000-$4FFFF into the flash
+Flash ID $BFB6
+Erase 6 sector(s), program 25947 byte(s)
+This replaces the monitor. Keep the power on and don't press reset until
+the new monitor starts. If a step fails, you can try it again.
+Program the flash (Y/N)? Y
+Erasing     ......
+Programming ................................................................
+Verifying   OK
+Starting the new monitor.
+```
+
+If you answer anything other than `Y`, or the sum, reset vector or flash ID is wrong, FLASHUPD returns to the old monitor and the flash is unchanged. After that, use `FL` as described below.
+
+### Updating the monitor over the serial line
+
+This needs a monitor that already has `FL`. For the first time, see FLASHUPD above.
+
+```
+make s28
+```
+
+This makes `monitor.s28`: the 256K image as S-records at $10000-$4FFFF (`bin2srec.py`). Records that hold only $FF are left out, so the file is short (about 94K, about 25 seconds at 38400 baud, 3840 characters per second). Because those records are missing, fill the RAM with $FF first. On the board:
+
+```
+> MF 10000 4FFFF FF
+> LO
+Send the S-record file now (ESC or Ctrl-C cancels)
+                                (send monitor.s28 from your terminal)
+> FL 10000 4FFFF 80000 !
+Flash ID $BFB6: SST39SF020A
+Flash $80000-$BFFFF from RAM $10000: erase 1 sector(s), program 4077 byte(s)
+This rewrites the running monitor. Keep the power on and don't press reset
+until the new monitor starts. If a step fails, you can try it again.
+Program the flash (Y/N)? Y
+Erasing     .
+Programming ................................................................
+Verifying   OK
+Starting the new monitor.
+```
+
+(This output is from emulator test fl3, where only one sector of the monitor differed.)
+
+`FL` only erases and programs the sectors that changed, so a small change to the monitor is quick. To update only EhBASIC, flash its part of the image: `FL 30000 3FFFF A0000` (no `!` needed).
+
+**Tested** in the emulator (`test/emu`, which now models the SST39SF020A command set, busy time and status bits, and warns when code runs from the flash while it is busy): ID, argument checks, programming a blank area, the refusal to erase other data, Y/N, the protection, a bad reset vector, a byte that won't program (with and without the monitor involved), retry with `R`, a full self-update both from a binary in RAM and through `LO` with `monitor.s28`, and FLASHUPD started from the a5707a9 monitor (fu1: update, after which `FL` works; fu2: RAM not filled with $FF first, sum error; fu3: answer N; in fu2 and fu3 the flash is unchanged). The scripts and their output are in `test/flash/`. In every successful update the flash ended up byte-identical to `monitor.bin`. Not yet tested on the board.
 
 ## Debugging: how it works
 
@@ -157,7 +252,7 @@ Notes for programs:
 * A program can end with `EXIT`. If it was started with `CALL`, it can also end with `RTS`.
 * SETVEC replaces the vector in a single long write, so no interrupt can see half of it. Don't replace vectors 4 (illegal), 9 (trace), 47 (TRAP #15) or 64 (68681) if you still want breakpoints, tracing, the API and the console. `VE D` puts everything back.
 * Your own level-2 (Junior bus IRQ, vector 26) or level-7 (NMI, vector 31) handler can be installed with SETVEC.
-* The receive buffer is 256 bytes. When it is 3/4 full, the monitor stops taking characters, so the 68681 FIFO fills and its RTS output tells the FTDI to pause. A host without RTS/CTS can still lose characters if a program doesn't read the console for a long time.
+* The receive buffer is 256 bytes. The receive interrupt always empties the 68681 FIFO into it. When the buffer holds 128 characters, the monitor negates RTS (OP0) to tell the FTDI to pause, and it asserts RTS again when a program has read it down below 64. The other 127 places are slack for a sender that stops a few characters late (an FTDI sends up to 3 more), so nothing overruns. A host without RTS/CTS can still lose characters if a program doesn't read the console for a long time.
 * Executing `RESET` is safe. It resets the 68681 and the Junior bus (see H3), and the monitor re-initialises the 68681 on its next output or entry. The boot overlay is *not* turned back on.
 
 ## Reset and start-up (what happens at power-on)
@@ -165,7 +260,7 @@ Notes for programs:
 1. The DS1233 releases ~PORST. GAL1 sets the boot overlay, so reads of $00000-$7FFFF come from the flash. The CPU fetches SSP=$1000 and PC=`cold_start` (in $80000-$BFFFF) from flash offsets 0 and 4. The first instruction fetch at $8xxxx clears the overlay.
 2. `MOVE #$2700,SR`, then a RAM test of $00000-$00FFF that uses no RAM (no stack). If it fails, both LEDs light and a polled message goes out on the serial port.
 3. The workspace is cleared, initialised data is copied from ROM to RAM (the size is checked when the image is assembled), and the vector table is copied to $00000 and verified.
-4. The 68681 is set up (38400 8N1, RxRTS, receive interrupt on level 5, IVR = 64), SR goes to $2400, and the banner is printed.
+4. The 68681 is set up (38400 8N1, RTS asserted by the monitor, receive interrupt on level 5, IVR = 64), SR goes to $2400, and the banner is printed.
 
 ## Hardware assumptions
 
@@ -175,7 +270,7 @@ Taken from the rev 0.2 netlist and the GAL equations. If one of these is differe
 * **H2** The boot overlay is set only by ~PORST and cleared by the first cycle at $8xxxx. Writes always reach the SRAM. The RESET instruction does not turn the overlay back on.
 * **H3** The CPU's ~RESET output resets the 68681 and the Junior bus (BRES). The monitor detects a reset 68681 from its IVR reading back $0F.
 * **H4** Interrupt levels: 5 = 68681 (vectored, IVR = 64), 2 = Junior IRQ (autovector 26), 7 = Junior NMI (autovector 31, edge-triggered, can't be masked). The 48-pin 68008 has only levels 2, 5 and 7.
-* **H5** The 68681 crystal is 3.6864 MHz. Channel A goes to the FTDI cable: OP0 = RTS out, IP0 = CTS in. The monitor's transmitter doesn't use CTS (MR2A = $07). Set MR2A bit 4 if the host needs it.
+* **H5** The 68681 crystal is 3.6864 MHz. Channel A goes to the FTDI cable: OP0 = RTS out, IP0 = CTS in. The monitor drives OP0 itself through the OPR; the 68681's RxRTS mode (MR1A bit 7) is off, because it negates RTS only when the 3-character FIFO is already full, and the characters an FTDI still sends after that are lost (68681 overrun). The monitor's transmitter doesn't use CTS (MR2A = $07). Set MR2A bit 4 if the host needs it.
 * **H6** OP7 lights D6 ("monitor active") and OP6 lights D5 (user LED). Setting an OPR bit drives the pin low.
 * **H7** There is no other bus master, cache or MMU. CPU clock 8 MHz (TX timeout ≈ 1 s).
 
@@ -191,4 +286,8 @@ Taken from the rev 0.2 netlist and the GAL equations. If one of these is differe
 | `srec.asm` | S-record loader and dumper |
 | `api.asm` | TRAP #15 services |
 | `disasm.asm` | MC68000 disassembler |
+| `flash.asm` | FL command: plans the job, and the RAM-resident erase/program/verify engine |
+| `bin2srec.py` | monitor.bin as S-records at $10000 for LO (make s28) |
+| `flashupd/` | FLASHUPD (`flashupd.asm`, a RAM program that puts a new monitor into the flash from a monitor without `FL`) and `mkflashupd.py`, which makes `flashupd.s28` (make flashupd) |
+| `flash_defs.inc`, `flash_engine.asm` | Flash constants and the erase/program/verify engine, shared by `FL` and FLASHUPD |
 | `test/` | Emulator board model (`emu.c`, for Musashi) and the test scripts used |

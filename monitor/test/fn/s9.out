@@ -56,4 +56,4 @@ A0=0000125A  A1=00000000  A2=00000000  A3=00000000
 A4=00000000  A5=00000000  A6=00000000  A7=0007E000
 0125A  7573                      DC.W    $7573
 > 
-[end: 1351176 clocks (0.169 s at 8 MHz), 56799 instructions, 0 overruns]
+[end: 1350216 clocks (0.169 s at 8 MHz), 56761 instructions, 0 overruns]

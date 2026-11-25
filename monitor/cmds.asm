@@ -209,6 +209,7 @@ cmd_so_i        equ     4
                 CMD     "BA",cmd_ba
                 CMD     "BASIC",cmd_ba
                 CMD     "BW",cmd_bw
+                CMD     "FL",cmd_fl
                 dc.b    0                       ; end of table
                 even
 
@@ -618,7 +619,7 @@ regions:
 rn_vec          dc.b    "the vector table ($00000-$003FF)",0
 rn_mon          dc.b    "the monitor workspace ($00400-$00FFF)",0
 rn_ram          dc.b    "user RAM ($01000-$7FFFF)",0
-rn_rom          dc.b    "the flash ROM ($80000-$BFFFF, use an SST programming routine)",0
+rn_rom          dc.b    "the flash ROM ($80000-$BFFFF; FL programs it from RAM)",0
 rn_win          dc.b    "the Junior bus window ($C0000-$CFFFF)",0
 rn_none         dc.b    "unmapped space ($D0000-$EFFFF, bus error)",0
 rn_duart        dc.b    "the 68681 registers ($F0000-$FFFFF; single accesses with MM only)",0
@@ -1594,11 +1595,11 @@ cmd_info:
                 PRINT   <"  $00000-$003FF  vector table (RAM copy, user may change)",13,10>
                 PRINT   <"  $00400-$00FFF  monitor workspace and stack (protected)",13,10>
                 PRINT   <"  $01000-$7FFFF  user RAM",13,10>
-                PRINT   <"  $80000-$BFFFF  flash ROM (monitor; read-only here)",13,10>
+                PRINT   <"  $80000-$BFFFF  flash ROM (monitor and EhBASIC; FL programs it)",13,10>
                 PRINT   <"  $C0000-$CFFFF  Junior bus window (1 MHz bus cycles)",13,10>
                 PRINT   <"  $D0000-$EFFFF  unmapped (bus error)",13,10>
                 PRINT   <"  $F0000-$FFFFF  68681 DUART (16 registers, repeated)",13,10>
-                PRINT   <"Console 38400 8N1 on channel A, RTS/CTS (RTS from the receiver)",13,10>
+                PRINT   <"Console 38400 8N1 on channel A, RTS/CTS (RTS driven by the monitor)",13,10>
                 PRINT   "Receive errors since reset: "
                 btst    #0,v_rxflags
                 beq    .1
@@ -1651,6 +1652,9 @@ help_text:
  dc.b " IN                       memory map and status",13,10
  dc.b " BA [top]                 EhBASIC, cold start (RAM $01000 to top-1)",13,10
  dc.b " BW [start]               EhBASIC, warm start (keeps the program)",13,10
+ dc.b " FL                       show the flash ID",13,10
+ dc.b " FL start end dest [!]    program RAM start..end into the flash at dest",13,10
+ dc.b "                          (! allows changing the monitor itself)",13,10
  dc.b "Ctrl-C or BREAK stops a running program; NMI too. Programs call the monitor",13,10
  dc.b "with TRAP #15 (D0.W = function), see MONITOR.md.",13,10
  dc.b 0

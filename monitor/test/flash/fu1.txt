@@ -1,0 +1,12 @@
+@fast
+MF 10000 4FFFF FF
+@send LO
+@file ../../flashupd/flashupd.s28
+@run 8000000
+@send GO
+@wait (Y/N)?
+@send Y
+@wait Type HE for help.
+@run 2000000
+FL
+@save /tmp/fu1.bin

@@ -1,0 +1,27 @@
+[LED OP6=0 OP7=1]
+
+
+MON68K 1.0 for core68008 (MC68008, 8 MHz). Type HE for help.
+RAM $00000-$7FFFF  ROM $80000-$BFFFF  Junior bus $C0000-$CFFFF  68681 $F0000
+> LO
+Send the S-record file now (ESC or Ctrl-C cancels)
+42268 bytes in 1321 data records, $01000-$3361F
+PC set to $01000
+> GO
+[LED OP6=0 OP7=0]
+
+FLASHUPD: put the MON68K image at RAM $10000-$4FFFF into the flash
+Error: the image in RAM has sum $01DF97F4, it should be $038FC7D4.
+Fill the RAM with MF 10000 4FFFF FF before LO, and check that LO
+reported no bad records. The flash is unchanged.
+[LED OP6=0 OP7=1]
+
+Program exit (TRAP #15 EXIT), D1=$00000000
+PC=000011AA  SR=2004 [-S0--Z--]  USP=0007F000  SSP=00080000
+D0=00000000  D1=00000000  D2=00000008  D3=00000000  
+D4=00000000  D5=00000000  D6=00000000  D7=00000000  
+A0=00001224  A1=00050000  A2=00000000  A3=00000000  
+A4=00000000  A5=00000000  A6=00000000  A7=00080000
+011AA  0D0A 464C                 MOVEP.W $464C(A2),D6
+> 
+[end: 204949094 clocks (25.619 s at 8 MHz), 10578488 instructions, 0 overruns]

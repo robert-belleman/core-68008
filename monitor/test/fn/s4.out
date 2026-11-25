@@ -96,7 +96,7 @@ Error: number expected
 Error: not allowed in unmapped space ($D0000-$EFFFF, bus error)
 > MD 7FFF0 20
 7FFF0  EA F1 F8 FF 06 0D 14 1B  22 29 30 37 3E 45 4C 53  ........")07>ELS
-80000  00 00 10 00 00 08 04 14  00 08 0A C2 00 08 0A CA  ................
+80000  00 00 10 00 00 08 04 14  00 08 0A C8 00 08 0A D0  ................
 > MD FFFF0 20
 
 Error: not allowed in the 68681 registers ($F0000-$FFFFF; single accesses with MM only)
@@ -115,4 +115,4 @@ Error: address beyond $FFFFF (20-bit address bus)
 
 Error: address beyond $FFFFF (20-bit address bus)
 > 
-[end: 2012130428 clocks (251.516 s at 8 MHz), 96391641 instructions, 0 overruns]
+[end: 2012123236 clocks (251.515 s at 8 MHz), 96391619 instructions, 0 overruns]

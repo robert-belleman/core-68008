@@ -1,1 +1,16 @@
 .DS_Store
+node_modules
+
+# KiCAD:
+*.lck
+
+# GAL:
+*.pin
+*.chp
+*.fus
+*.jed
+
+# m68k assembler:
+*.bin
+*.lst
+*.s28

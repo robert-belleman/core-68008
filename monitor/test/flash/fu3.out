@@ -1,0 +1,31 @@
+[LED OP6=0 OP7=1]
+
+
+MON68K 1.0 for core68008 (MC68008, 8 MHz). Type HE for help.
+RAM $00000-$7FFFF  ROM $80000-$BFFFF  Junior bus $C0000-$CFFFF  68681 $F0000
+> MF 10000 4FFFF FF
+> LO
+Send the S-record file now (ESC or Ctrl-C cancels)
+42268 bytes in 1321 data records, $01000-$3361F
+PC set to $01000
+> GO
+[LED OP6=0 OP7=0]
+
+FLASHUPD: put the MON68K image at RAM $10000-$4FFFF into the flash
+Flash ID $BFB6
+Erase 6 sector(s), program 25947 byte(s)
+This replaces the monitor. Keep the power on and don't press reset until
+the new monitor starts. If a step fails, you can try it again.
+Program the flash (Y/N)? N
+Cancelled. The flash is unchanged.
+[LED OP6=0 OP7=1]
+
+Program exit (TRAP #15 EXIT), D1=$00000000
+PC=000011AA  SR=2004 [-S0--Z--]  USP=0007F000  SSP=00080000
+D0=00000000  D1=00000000  D2=00000004  D3=00000040  
+D4=00000006  D5=0000655B  D6=0000FFFF  D7=00000000  
+A0=0000144A  A1=000C0000  A2=0000189C  A3=00000000  
+A4=00000000  A5=00000000  A6=00000000  A7=00080000
+011AA  0D0A 464C                 MOVEP.W $464C(A2),D6
+> 
+[end: 305092880 clocks (38.137 s at 8 MHz), 17474016 instructions, 0 overruns]

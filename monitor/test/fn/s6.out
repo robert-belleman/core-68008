@@ -110,4 +110,4 @@ All vectors point to the monitor's handlers
 011B0
 1 match(es)
 > 
-[end: 403391068 clocks (50.424 s at 8 MHz), 19311655 instructions, 0 overruns]
+[end: 403390536 clocks (50.424 s at 8 MHz), 19311691 instructions, 0 overruns]

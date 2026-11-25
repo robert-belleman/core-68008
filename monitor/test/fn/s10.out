@@ -1,0 +1,27 @@
+[LED OP6=0 OP7=1]
+
+
+MON68K 1.0 for core68008 (MC68008, 8 MHz). Type HE for help.
+RAM $00000-$7FFFF  ROM $80000-$BFFFF  Junior bus $C0000-$CFFFF  68681 $F0000
+> MF 10000 4FFFF FF
+> LO
+Send the S-record file now (ESC or Ctrl-C cancels)
+40000 bytes in 1250 data records, $10000-$3361F
+Entry address $00000000 not used (odd or not executable); PC unchanged
+> CM 10000 4FFFF 80000
+0 difference(s)
+> IN
+MON68K 1.0  MC68008 at 8 MHz, 20-bit address bus
+  $00000-$003FF  vector table (RAM copy, user may change)
+  $00400-$00FFF  monitor workspace and stack (protected)
+  $01000-$7FFFF  user RAM
+  $80000-$BFFFF  flash ROM (monitor and EhBASIC; FL programs it)
+  $C0000-$CFFFF  Junior bus window (1 MHz bus cycles)
+  $D0000-$EFFFF  unmapped (bus error)
+  $F0000-$FFFFF  68681 DUART (16 registers, repeated)
+Console 38400 8N1 on channel A, RTS/CTS (RTS driven by the monitor)
+Receive errors since reset: none
+Ctrl-C break into the monitor: on
+> 
+[end: 262648348 clocks (32.831 s at 8 MHz), 14330420 instructions, 0 overruns]
+[track: max fill of (00700)-(00701) = 132]

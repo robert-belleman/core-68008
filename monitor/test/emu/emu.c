@@ -14,6 +14,12 @@
  *    OPR set/reset, IP0 (CTS), RxRTS flow control on OP0.
  *  - IACK level 5 -> IVR (or spurious if the DUART is not requesting),
  *    levels 2 and 7 autovectored (VPA).
+ *  - SST39SF020A command model: unlock cycles on $5555/$2AAA (A14-A0),
+ *    byte program (bits only go 1 -> 0, 20 us busy, DQ7 data polling and DQ6
+ *    toggle), sector erase (4K, 18 ms), chip erase, software ID (BF B6).
+ *    Reads while busy or in ID mode return status/ID, not data; an
+ *    instruction fetch from the flash then is reported. Bad sequences are
+ *    reported too.
  *
  * Script (stdin of -s file): one line per entry.
  *   text            wait for the prompt, then send text + CR
@@ -28,6 +34,14 @@
  *   @dump A N       print N bytes of memory at A (host side)
  *   @fast           feed characters as fast as the FIFO allows (no baud timing)
  *   @noflow         ignore RTS (sender does not honour flow control)
+ *   @lag N          sender still sends N characters after RTS goes away and
+ *                   ignores the FIFO (an FTDI-like sender; 0 = ideal, default)
+ *   @track H T      track the max of byte (H) - byte (T) (ring fill); reported
+ *                   by @track without arguments (which stops it) or at the end
+ *   @load FILE A    copy a file into memory at A (host side)
+ *   @save FILE      write the 256K flash contents to FILE
+ *   @stuck A M      flash byte A keeps bits M at 1 (program fails); M=0 clears
+ *   @flashlog       print every flash program/erase command
  *   # ...           comment
  */
 #include <stdio.h>
@@ -54,6 +68,8 @@ static int break_pending; static uint8_t isr_brk;
 static int ip0_cts = 0;   /* CTS input low = asserted */
 static char outbuf[1 << 20]; static size_t outlen, outmark;
 static int noflow = 0, fast = 0;
+static int lag = 0, lag_cnt = 0;          /* @lag: characters the sender still sends after RTS goes away */
+static unsigned trk_h = 0, trk_t = 0; static int trk_max = -1;   /* @track: max ring fill */
 static unsigned long long next_rx_clock;
 static const unsigned CHAR_CLOCKS = 2083; /* 8 MHz / 3840 chars/s (38400 baud) */
 static int verbose_led = 1;
@@ -129,6 +145,74 @@ static void duart_write(unsigned r, uint8_t v) {
     update_irq();
 }
 
+/* ---- SST39SF020A ---- */
+static int fl_cyc, fl_id, fl_prog, fl_erase_arm, fl_busy, fl_toggle, fl_log, fl_warned;
+static unsigned long long fl_busy_until;
+static uint8_t fl_busy_data;
+static unsigned fl_stuck_addr = 0xffffffff; static uint8_t fl_stuck_mask;
+static unsigned long long fl_nprog, fl_nsect, fl_nchip;
+static unsigned long long now_exact(void) { return clocks68008 + m68k_cycles_run() + extra; }
+static void flash_reset(void) { fl_cyc = fl_id = fl_prog = fl_erase_arm = fl_busy = 0; }
+static int flash_unreadable(void) {
+    if (fl_busy && now_exact() >= fl_busy_until) fl_busy = 0;
+    return fl_busy || fl_id;
+}
+static uint8_t flash_read(unsigned ca) {
+    if (fl_busy && now_exact() >= fl_busy_until) fl_busy = 0;
+    if (fl_busy) {
+        fl_toggle ^= 0x40;
+        if (fl_busy == 1) return (~fl_busy_data & 0x80) | fl_toggle | 0x15;  /* program: DQ7# */
+        return fl_toggle | 0x08;                                           /* erase: DQ7 = 0 */
+    }
+    if (fl_id) return (ca & 1) ? 0xb6 : 0xbf;
+    return rom[ca];
+}
+static void flash_bad(unsigned ca, uint8_t v) {
+    fprintf(stderr, "[flash: unexpected write %05X=%02X (cycle %d)]\n", ca + 0x80000, v, fl_cyc);
+    fl_cyc = 0; fl_erase_arm = 0;
+}
+static void flash_write(unsigned ca, uint8_t v) {
+    unsigned c15 = ca & 0x7fff;
+    if (fl_busy && now_exact() >= fl_busy_until) fl_busy = 0;
+    if (fl_busy) { fprintf(stderr, "[flash: write %05X=%02X while busy]\n", ca + 0x80000, v); return; }
+    if (fl_prog) {
+        fl_prog = 0;
+        uint8_t nv = rom[ca] & v;
+        if (ca == fl_stuck_addr) nv |= fl_stuck_mask;
+        rom[ca] = nv; fl_nprog++;
+        fl_busy = 1; fl_busy_data = v; fl_busy_until = now_exact() + 160;  /* 20 us */
+        if (fl_log) fprintf(stderr, "[flash: program %05X=%02X]\n", ca + 0x80000, v);
+        return;
+    }
+    if (fl_cyc == 0 && v == 0xf0) { fl_id = 0; fl_erase_arm = 0; return; }  /* one-cycle exit */
+    switch (fl_cyc) {
+    case 0: if (c15 == 0x5555 && v == 0xaa) fl_cyc = 1; else flash_bad(ca, v); break;
+    case 1: if (c15 == 0x2aaa && v == 0x55) fl_cyc = 2; else flash_bad(ca, v); break;
+    case 2:
+        fl_cyc = 0;
+        if (fl_erase_arm) {
+            fl_erase_arm = 0;
+            if (v == 0x30) {
+                memset(rom + (ca & ~0xfffu), 0xff, 0x1000); fl_nsect++;
+                fl_busy = 2; fl_busy_until = now_exact() + 144000;          /* 18 ms */
+                if (fl_log) fprintf(stderr, "[flash: sector erase %05X]\n", (ca & ~0xfffu) + 0x80000);
+            } else if (v == 0x10 && c15 == 0x5555) {
+                memset(rom, 0xff, sizeof rom); fl_nchip++;
+                fl_busy = 2; fl_busy_until = now_exact() + 560000;          /* 70 ms */
+                if (fl_log) fprintf(stderr, "[flash: chip erase]\n");
+            } else flash_bad(ca, v);
+            break;
+        }
+        if (c15 != 0x5555) { flash_bad(ca, v); break; }
+        if (v == 0xa0) fl_prog = 1;
+        else if (v == 0x80) fl_erase_arm = 1;
+        else if (v == 0x90) fl_id = 1;
+        else if (v == 0xf0) fl_id = 0;
+        else flash_bad(ca, v);
+        break;
+    }
+}
+
 /* ---- bus ---- */
 static void raise_berr(unsigned a, int write) {
     emu_berr_flag = 1;
@@ -140,15 +224,15 @@ static void raise_berr(unsigned a, int write) {
 static unsigned rd8(unsigned a) {
     a &= 0xfffff;
     if (a < 0x80000) return overlay ? rom[a & 0x3ffff] : ram[a];
-    if (a < 0xc0000) { overlay = 0; return rom[a & 0x3ffff]; }
+    if (a < 0xc0000) { overlay = 0; return flash_read(a & 0x3ffff); }
     if (a < 0xd0000) return (a - 0xc0000) < 0x800 ? win[a - 0xc0000] : 0xff;
     if (a < 0xf0000) raise_berr(a, 0);
     return duart_read(a & 15);
 }
 static void wr8(unsigned a, unsigned v) {
     a &= 0xfffff; v &= 0xff;
-    if (a < 0x80000) { ram[a] = v; return; }
-    if (a < 0xc0000) { overlay = 0; fprintf(stderr, "[flash write %05X=%02X ignored]\n", a, v); return; }
+    if (a < 0x80000) { ram[a] = v; if (trk_max >= 0 && (a == trk_h || a == trk_t)) { int f = (uint8_t)(ram[trk_h] - ram[trk_t]); if (f > trk_max) trk_max = f; } return; }
+    if (a < 0xc0000) { overlay = 0; flash_write(a & 0x3ffff, v); return; }
     if (a < 0xd0000) { if ((a - 0xc0000) < 0x800) win[a - 0xc0000] = v; return; }
     if (a < 0xf0000) raise_berr(a, 1);
     duart_write(a & 15, v);
@@ -172,7 +256,12 @@ void emu_reset_instr(void) { duart_reset(); update_irq(); fprintf(stderr, "[RESE
 
 static unsigned long long instr_count;
 static int trace_pc = 0;
-void emu_instr_hook(unsigned int pc) { instr_count++; if (trace_pc) fprintf(stderr, "PC=%06X\n", pc); }
+void emu_instr_hook(unsigned int pc) {
+    instr_count++; if (trace_pc) fprintf(stderr, "PC=%06X\n", pc);
+    pc &= 0xfffff;
+    if (pc >= 0x80000 && pc < 0xc0000 && flash_unreadable() && fl_warned++ < 5)
+        fprintf(stderr, "[flash: instruction fetch at %05X while the flash is %s]\n", pc, fl_busy ? "busy" : "in ID mode");
+}
 
 /* ---- input feed ---- */
 static uint8_t *feed; static size_t feed_len, feed_pos;
@@ -187,11 +276,19 @@ static void run(unsigned clk) {
         clocks68008 += c + extra;
         if (CPU_STOPPED & STOP_LEVEL_HALT) { if (!halted) fprintf(stderr, "[CPU HALTED (double bus fault)]\n"); halted = 1; clocks68008 = end; }
         if (feed_pos < feed_len && clocks68008 >= next_rx_clock && rx_en) {
-            if (noflow || rts_asserted() || !(mr1a & 0x80)) {
-                if (fifo_n < 3 || noflow) {
-                    rx_push(feed[feed_pos++], 0);
-                    next_rx_clock = clocks68008 + (fast ? 400 : CHAR_CLOCKS);
-                }
+            /* The sender watches its CTS = OP0 (RTSN), whoever drives it: the
+               68681's RxRTS logic or the program through the OPR. With
+               @lag 0 it is ideal (stops at once and never overruns the
+               FIFO); with @lag N it is like an FTDI: it ignores the FIFO
+               and still sends up to N characters after RTS goes away. */
+            int can;
+            if (noflow) can = 1;
+            else if (rts_asserted()) { lag_cnt = 0; can = lag || fifo_n < 3; }
+            else if (lag_cnt < lag) { lag_cnt++; can = 1; }
+            else can = 0;
+            if (can) {
+                rx_push(feed[feed_pos++], 0);
+                next_rx_clock = clocks68008 + (fast ? 400 : CHAR_CLOCKS);
             }
         }
     }
@@ -204,7 +301,7 @@ static int wait_for(const char *s, unsigned long long maxclk) {
 }
 static void drain_feed(void) { while (feed_pos < feed_len && !halted) run(2000); feed_len = feed_pos = 0; }
 
-static void hw_reset(void) { overlay = 1; duart_reset(); halted = 0; m68k_pulse_reset(); }
+static void hw_reset(void) { overlay = 1; duart_reset(); flash_reset(); halted = 0; m68k_pulse_reset(); }
 
 
 /* ---- interactive terminal mode (-i) ---- */
@@ -303,8 +400,16 @@ int main(int argc, char **argv) {
             else if (!strcmp(line, "@slow")) fast = 0;
             else if (!strcmp(line, "@noflow")) noflow = 1;
             else if (!strcmp(line, "@flow")) noflow = 0;
+            else if (!strcmp(line, "@lag")) lag = atoi(arg);
+            else if (!strcmp(line, "@track")) {
+                if (sscanf(arg, "%x %x", &trk_h, &trk_t) == 2) trk_max = 0;
+                else if (trk_max >= 0) { fprintf(stderr, "[track: max fill of (%05X)-(%05X) = %d]\n", trk_h, trk_t, trk_max); trk_max = -1; }
+            }
             else if (!strcmp(line, "@load")) { char fn[512]; unsigned a; if (sscanf(arg, "%511s %x", fn, &a) == 2) { FILE *x = fopen(fn, "rb"); if (!x) { perror(fn); continue; } int ch; while ((ch = fgetc(x)) != EOF) { wr8(a++, ch); } fclose(x); } }
             else if (!strcmp(line, "@limit")) { LIMIT = strtoull(arg, 0, 0); }
+            else if (!strcmp(line, "@save")) { FILE *x = fopen(arg, "wb"); if (!x) { perror(arg); continue; } fwrite(rom, 1, sizeof rom, x); fclose(x); }
+            else if (!strcmp(line, "@stuck")) { unsigned a, m; if (sscanf(arg, "%x %x", &a, &m) == 2) { fl_stuck_addr = m ? (a & 0x3ffff) : 0xffffffff; fl_stuck_mask = m; } }
+            else if (!strcmp(line, "@flashlog")) fl_log = 1;
             else if (!strcmp(line, "@dump")) { unsigned a, n; sscanf(arg, "%x %x", &a, &n); fprintf(stderr, "[dump %05X:", a); for (unsigned i = 0; i < n; i++) fprintf(stderr, " %02X", peek8(a + i)); fprintf(stderr, "]\n"); }
             continue;
         }
@@ -315,5 +420,8 @@ int main(int argc, char **argv) {
     }
     fprintf(stderr, "\n[end: %llu clocks (%.3f s at 8 MHz), %llu instructions, %llu overruns]\n",
             clocks68008, clocks68008 / 8e6, instr_count, overruns);
+    if (trk_max >= 0) fprintf(stderr, "[track: max fill of (%05X)-(%05X) = %d]\n", trk_h, trk_t, trk_max);
+    if (fl_nprog || fl_nsect || fl_nchip)
+        fprintf(stderr, "[flash: %llu bytes programmed, %llu sector erases, %llu chip erases]\n", fl_nprog, fl_nsect, fl_nchip);
     return 0;
 }

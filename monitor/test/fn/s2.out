@@ -166,4 +166,4 @@ A4=00000000  A5=00000000  A6=00000000  A7=00080000
 
 [timeout after 'VE']
 
-[end: 5603032170 clocks (700.379 s at 8 MHz), 75796124 instructions, 0 overruns]
+[end: 5603031254 clocks (700.379 s at 8 MHz), 75796125 instructions, 0 overruns]

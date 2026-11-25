@@ -1,0 +1,44 @@
+# FL without self-update: ID, argument checks, blank area, refusals, failure
+@flashlog
+FL
+FL 0 10 88000
+FL 1000 1010 7F000
+FL 1000 1010 BFFFF
+MF 10000 100FF 5A
+@send FL 10000 100FF 88000
+@wait (Y/N)?
+@send Y
+@run 4000000
+MD 88000 20
+FL 10000 100FF 88000
+MF 10000 1007F A5
+FL 10000 1007F 88000
+MF 10000 10FFF FF
+MF 10000 1007F A5
+@send FL 10000 10FFF 88000
+@wait (Y/N)?
+@send N
+@run 400000
+@send FL 10000 10FFF 88000
+@wait (Y/N)?
+@send Y
+@run 4000000
+MD 88000 20
+MD 88080 20
+FL 10000 100FF 86000
+MF 10000 1000F 00
+FL 10000 1000F 80000
+@stuck 87010 01
+MF 10000 1001F 00
+@send FL 10000 1001F 87000
+@wait (Y/N)?
+@send Y
+@run 4000000
+@stuck 87010 0
+@send FL 10000 1001F 87000
+@wait (Y/N)?
+@send Y
+@run 4000000
+MD 87000 20
+@dump 88000 10
+@dump 87000 20

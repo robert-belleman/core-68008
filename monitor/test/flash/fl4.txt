@@ -1,0 +1,12 @@
+@load ../../monitor.bin 10000
+@stuck 80005 80
+@send FL 10000 4FFFF 80000 !
+@wait (Y/N)?
+@send Y
+@wait press R
+@run 2000000
+@stuck 80005 0
+@send R
+@wait Type HE for help.
+@run 2000000
+@save /tmp/fl4.bin

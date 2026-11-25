@@ -1,0 +1,11 @@
+# LO of monitor.s28 at full speed with a sender that stops 3 characters late
+# (like an FTDI): needs the slack above RX_HIWATER. @track 700 701 = v_rxhead/v_rxtail.
+@lag 3
+@fast
+@track 700 701
+MF 10000 4FFFF FF
+@send LO
+@file ../../monitor.s28
+@run 8000000
+CM 10000 4FFFF 80000
+IN

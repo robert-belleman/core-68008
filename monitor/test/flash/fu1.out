@@ -1,0 +1,35 @@
+[LED OP6=0 OP7=1]
+
+
+MON68K 1.0 for core68008 (MC68008, 8 MHz). Type HE for help.
+RAM $00000-$7FFFF  ROM $80000-$BFFFF  Junior bus $C0000-$CFFFF  68681 $F0000
+> MF 10000 4FFFF FF
+> LO
+Send the S-record file now (ESC or Ctrl-C cancels)
+42268 bytes in 1321 data records, $01000-$3361F
+PC set to $01000
+> GO
+[LED OP6=0 OP7=0]
+
+FLASHUPD: put the MON68K image at RAM $10000-$4FFFF into the flash
+Flash ID $BFB6
+Erase 6 sector(s), program 25947 byte(s)
+This replaces the monitor. Keep the power on and don't press reset until
+the new monitor starts. If a step fails, you can try it again.
+Program the flash (Y/N)? Y
+Erasing     ......
+Programming ................................................................
+Verifying   OK
+Starting the new monitor.
+[RESET instruction: 68681 reset]
+[LED OP6=0 OP7=1]
+
+
+MON68K 1.0 for core68008 (MC68008, 8 MHz). Type HE for help.
+RAM $00000-$7FFFF  ROM $80000-$BFFFF  Junior bus $C0000-$CFFFF  68681 $F0000
+> FL
+Flash ID $BFB6: SST39SF020A
+Monitor sectors (FL changes them only with !): $80000-$86FFF
+> 
+[end: 361841516 clocks (45.230 s at 8 MHz), 21811045 instructions, 0 overruns]
+[flash: 25947 bytes programmed, 6 sector erases, 0 chip erases]
